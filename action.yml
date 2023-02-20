@@ -1,0 +1,49 @@
+
+name: 'AppEcrAction'
+description: 'Check and create an ecr for microservice'
+inputs:
+  aws-role:
+    description: 'Aws role to apply changes'
+    required: true
+  aws-region:
+    description: 'Aws region'
+    default: 'eu-central-1'
+  registry:
+    description: 'Registry name'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure AWS credentials for security
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: ${{ inputs.aws-role }}
+        role-session-name: OIDCSession
+    - name: Check if registry exists
+      id: registry
+      shell: bash
+      env:
+        REPO_NAME: ${{ inputs.registry }}
+      run: |
+        repository=$(aws ecr describe-repositories --repository-names ${REPO_NAME} --query "repositories[].[repositoryName]" --output text --no-cli-pager || "")
+        echo "registry=${repository}" >> $GITHUB_OUTPUT
+    - name: Create registry if missing
+      shell: bash
+      env:
+        REPO_NAME: ${{ inputs.registry }}
+      if: ${{ steps.registry.outputs.registry }} == ""
+      run: |
+        aws ecr create-repository --repository-name ${REPO_NAME}
+    - name: Create registry if missing
+      shell: bash
+      env:
+        REPO_NAME: ${{ inputs.registry }}
+      if: ${{ steps.registry.outputs.registry }} == ""
+      run: |
+        data=""
+        template=$(cat policy.json)
+        printf -v data "$template" "10" "10"
+        aws ecr put-lifecycle-policy \
+            --repository-name ${REPO_NAME} \
+            --lifecycle-policy-text "$data"
