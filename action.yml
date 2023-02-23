@@ -8,6 +8,9 @@ inputs:
   aws-region:
     description: 'Aws region'
     default: 'eu-central-1'
+  environment:
+    description: 'Finalcad envrionment: production, staging, sandbox'
+    require: true
   registry:
     description: 'Registry name'
     required: true
@@ -26,24 +29,44 @@ runs:
       env:
         REPO_NAME: ${{ inputs.registry }}
       run: |
-        repository=$(aws ecr describe-repositories --repository-names ${REPO_NAME} --query "repositories[].[repositoryName]" --output text --no-cli-pager || "")
-        echo "registry=${repository}" >> $GITHUB_OUTPUT
+        registry=$(aws ecr describe-repositories --repository-names ${REPO_NAME} --query "repositories[].[repositoryName]" --output text --no-cli-pager 2>/dev/null) || echo ""
+        echo "registry=${registry}" >> $GITHUB_OUTPUT
     - name: Create registry if missing
       shell: bash
       env:
         REPO_NAME: ${{ inputs.registry }}
-      if: ${{ steps.registry.outputs.registry }} == ""
+        ENVIRONMENT: ${{ inputs.environment }}
+      if: steps.registry.outputs.registry == ''
       run: |
-        aws ecr create-repository --repository-name ${REPO_NAME}
-    - name: Create registry if missing
+        applicationid=$(basename "${REPO_NAME}")
+        aws ecr create-repository --repository-name ${REPO_NAME} --tags '[{"Key":"ApplicationID","Value":"${applicationid}"},{"Key":"Environment","Value":"${ENVIRONMENT^}"}]'
+    - name: Create registry lifecycle if missing
       shell: bash
       env:
         REPO_NAME: ${{ inputs.registry }}
-      if: ${{ steps.registry.outputs.registry }} == ""
+        ENVIRONMENT: ${{ inputs.environment }}
+      if: steps.registry.outputs.registry == ''
       run: |
+        case "$ENVIRONMENT" in
+          sandbox)
+            retention=5
+            ;;
+
+          staging)
+            retention=10
+            ;;
+
+          production)
+            retention=10
+            ;;
+
+          *)
+            retention=10
+            ;;
+        esac
         data=""
-        template=$(cat policy.json)
-        printf -v data "$template" "10" "10"
+        template=$(cat ${GITHUB_ACTION_PATH}/policy.json)
+        printf -v data "${template}" "${retention}" "${retention}"
         aws ecr put-lifecycle-policy \
             --repository-name ${REPO_NAME} \
             --lifecycle-policy-text "$data"
