@@ -39,7 +39,7 @@ runs:
       if: steps.registry.outputs.registry == ''
       run: |
         applicationid=$(basename "${REPO_NAME}")
-        aws ecr create-repository --repository-name ${REPO_NAME} --tags '[{"Key":"ApplicationID","Value":"${applicationid}"},{"Key":"Environment","Value":"${ENVIRONMENT^}"}]'
+        aws ecr create-repository --repository-name ${REPO_NAME} --tags "[{\"Key\":\"ApplicationID\",\"Value\":\"${applicationid}\"},{\"Key\":\"Environment\",\"Value\":\"${ENVIRONMENT^}\"}]"
     - name: Create registry lifecycle if missing
       shell: bash
       env:
