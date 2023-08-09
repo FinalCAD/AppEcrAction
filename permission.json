@@ -1,0 +1,20 @@
+{
+    "Version" : "2012-10-17",
+    "Statement" : [
+        {
+            "Sid" : "allow cross account pulling",
+            "Effect" : "Allow",
+            "Principal": {
+                "AWS": [%s]
+            },
+            "Action" : [
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:BatchGetImage",
+                "ecr:DescribeImages",
+                "ecr:DescribeRepositories",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:ListImages"
+            ]
+        }
+    ]
+}
