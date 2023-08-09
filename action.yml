@@ -14,6 +14,9 @@ inputs:
   registry:
     description: 'Registry name'
     required: true
+  pulling-accounts:
+    description: 'Accounts number separated by commas to allow cross account pull'
+    default: ''
 runs:
   using: 'composite'
   steps:
@@ -70,3 +73,22 @@ runs:
         aws ecr put-lifecycle-policy \
             --repository-name ${REPO_NAME} \
             --lifecycle-policy-text "$data"
+    - name: Create registry permission policy
+      shell: bash
+      env:
+        REPO_NAME: ${{ inputs.registry }}
+        ENVIRONMENT: ${{ inputs.environment }}
+        ACCOUNTS: ${{ inputs.pulling-accounts }}
+      if: steps.registry.outputs.registry == '' && inputs.pulling-accounts != ''
+      run: |
+        data=""
+        values=""
+        accounts=$(echo $ACCOUNTS | tr "," "\n")
+        for account in $accounts; do
+            values="\"arn:aws:iam::${account}:root\",${values}"
+        done
+        template=$(cat ${GITHUB_ACTION_PATH}/permission.json)
+        printf -v data "${template}" "${values::-1}"
+        aws ecr set-repository-policy \
+            --repository-name ${REPO_NAME} \
+            --policy-text "$data"
