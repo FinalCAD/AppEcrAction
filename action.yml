@@ -4,91 +4,24 @@ description: 'Check and create an ecr for microservice'
 inputs:
   aws-role:
     description: 'Aws role to apply changes'
-    required: true
+    default: ''
   aws-region:
     description: 'Aws region'
     default: 'eu-central-1'
   environment:
     description: 'Finalcad envrionment: production, staging, sandbox'
-    require: true
+    default: ''
   registry:
     description: 'Registry name'
-    required: true
+    default: ''
   pulling-accounts:
     description: 'Accounts number separated by commas to allow cross account pull'
     default: ''
 runs:
   using: 'composite'
   steps:
-    - name: Configure AWS credentials for security
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-region: ${{ inputs.aws-region }}
-        role-to-assume: ${{ inputs.aws-role }}
-        role-session-name: OIDCSession
-    - name: Check if registry exists
-      id: registry
+    - name: Deprecated version of FinalCAD/AppEcrAction
       shell: bash
-      env:
-        REPO_NAME: ${{ inputs.registry }}
       run: |
-        registry=$(aws ecr describe-repositories --repository-names ${REPO_NAME} --query "repositories[].[repositoryName]" --output text --no-cli-pager 2>/dev/null) || echo ""
-        echo "registry=${registry}" >> $GITHUB_OUTPUT
-    - name: Create registry if missing
-      shell: bash
-      env:
-        REPO_NAME: ${{ inputs.registry }}
-        ENVIRONMENT: ${{ inputs.environment }}
-      if: steps.registry.outputs.registry == ''
-      run: |
-        applicationid=$(basename "${REPO_NAME}")
-        aws ecr create-repository --repository-name ${REPO_NAME} --tags "[{\"Key\":\"ApplicationID\",\"Value\":\"${applicationid}\"},{\"Key\":\"Environment\",\"Value\":\"${ENVIRONMENT^}\"}]"
-    - name: Create registry lifecycle if missing
-      shell: bash
-      env:
-        REPO_NAME: ${{ inputs.registry }}
-        ENVIRONMENT: ${{ inputs.environment }}
-      if: steps.registry.outputs.registry == ''
-      run: |
-        case "$ENVIRONMENT" in
-          sandbox)
-            retention=5
-            ;;
-
-          staging)
-            retention=10
-            ;;
-
-          production)
-            retention=10
-            ;;
-
-          *)
-            retention=10
-            ;;
-        esac
-        data=""
-        template=$(cat ${GITHUB_ACTION_PATH}/policy.json)
-        printf -v data "${template}" "${retention}" "${retention}"
-        aws ecr put-lifecycle-policy \
-            --repository-name ${REPO_NAME} \
-            --lifecycle-policy-text "$data"
-    - name: Create registry permission policy
-      shell: bash
-      env:
-        REPO_NAME: ${{ inputs.registry }}
-        ENVIRONMENT: ${{ inputs.environment }}
-        ACCOUNTS: ${{ inputs.pulling-accounts }}
-      if: steps.registry.outputs.registry == '' && inputs.pulling-accounts != ''
-      run: |
-        data=""
-        values=""
-        accounts=$(echo $ACCOUNTS | tr "," "\n")
-        for account in $accounts; do
-            values="\"arn:aws:iam::${account}:root\",${values}"
-        done
-        template=$(cat ${GITHUB_ACTION_PATH}/permission.json)
-        printf -v data "${template}" "${values::-1}"
-        aws ecr set-repository-policy \
-            --repository-name ${REPO_NAME} \
-            --policy-text "$data"
+        echo '::error title=Deprecated version of FinalCAD/AppEcrAction::This version of FinalCAD/AppEcrAction is deprecated use `v1` instead.'
+        exit 1
