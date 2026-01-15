@@ -11,6 +11,12 @@ inputs:
   environment:
     description: 'Finalcad envrionment: production, staging, sandbox'
     require: true
+  owner:
+    description: 'Team owner of the repository'
+    default: ''
+  product:
+    description: 'Product name'
+    default: 'finalcad-one'
   registry:
     description: 'Registry name'
     required: true
@@ -41,8 +47,23 @@ runs:
         ENVIRONMENT: ${{ inputs.environment }}
       if: steps.registry.outputs.registry == ''
       run: |
-        applicationid=$(basename "${REPO_NAME}")
-        aws ecr create-repository --repository-name ${REPO_NAME} --tags "[{\"Key\":\"ApplicationID\",\"Value\":\"${applicationid}\"},{\"Key\":\"Environment\",\"Value\":\"${ENVIRONMENT^}\"}]"
+        ecr_tags="$(jq \
+          -nc \
+          --arg application "$(basename "${REPO_NAME}")" \
+          --arg environment '${{ inputs.environment }}' \
+          --arg owner       '${{ inputs.owner }}' \
+          --arg product     '${{ inputs.product }}' \
+          '[
+            {Key: "Application", Value: $application},
+            {Key: "Environment", Value: $environment},
+            {Key: "ManagedFrom", Value: "GithubAction"},
+            {Key: "ManagedBy", Value: "FinalCAD/AppEcrAction"},
+            {Key: "Manager", Value: $owner},
+            {Key: "Owner", Value: $owner},
+            {Key: "Product", Value: $product}
+          ] | map(select(.Value != ""))'
+        )"
+        aws ecr create-repository --repository-name "${REPO_NAME}" --tags "${ecr_tags}"
     - name: Create registry lifecycle if missing
       shell: bash
       env:
