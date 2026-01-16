@@ -47,6 +47,13 @@ runs:
         ENVIRONMENT: ${{ inputs.environment }}
       if: steps.registry.outputs.registry == ''
       run: |
+        aws ecr create-repository --repository-name "${REPO_NAME}"
+    - name: Update registry tags
+      shell: bash
+      env:
+        REPO_NAME: ${{ inputs.registry }}
+      run: |
+        repository_arn="$(aws ecr describe-repositories --repository-names "${REPO_NAME}" --query "repositories[0].repositoryArn" --output text --no-cli-pager)"
         ecr_tags="$(jq \
           -nc \
           --arg application "$(basename "${REPO_NAME}")" \
@@ -63,7 +70,7 @@ runs:
             {Key: "Product", Value: $product}
           ] | map(select(.Value != ""))'
         )"
-        aws ecr create-repository --repository-name "${REPO_NAME}" --tags "${ecr_tags}"
+        aws ecr tag-resource --resource-arn "${repository_arn}" --tags "${ecr_tags}"
     - name: Create registry lifecycle if missing
       shell: bash
       env:
