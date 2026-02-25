@@ -10,10 +10,10 @@ inputs:
     default: 'eu-central-1'
   environment:
     description: 'Finalcad envrionment: production, staging, sandbox'
-    require: true
+    required: true
   owner:
     description: 'Team owner of the repository'
-    default: ''
+    required: true
   product:
     description: 'Product name'
     default: 'finalcad-one'
@@ -26,6 +26,27 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Pre-conditition
+      shell: bash
+      run: |
+        rc=0
+        [[ ! -z '${{ inputs.aws-role}}' ]] || {
+          rc=$?
+          echo 'Missing Github action input "aws-role"'
+        }
+        [[ ! -z '${{ inputs.environment}}' ]] || {
+          rc=$?
+          echo 'Missing Github action input "environment"'
+        }
+        [[ ! -z '${{ inputs.owner}}' ]] || {
+          rc=$?
+          echo 'Missing Github action input "owner"'
+        }
+        [[ ! -z '${{ inputs.registry}}' ]] || {
+          rc=$?
+          echo 'Missing Github action input "registry"'
+        }
+        exit $rc
     - name: Configure AWS credentials for security
       uses: aws-actions/configure-aws-credentials@v5
       with:
